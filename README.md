@@ -1,5 +1,5 @@
 # Situace
-This is a simple Python script that scrapes MZČR info about the coronasituace in Czechia.
+This is a simple Python script that scrapes MZČR info about the coronasituace in Czechia and posts it to Slack workspace.
 
 ### Usage
 - Clone the repo somewhere and copy the path.
