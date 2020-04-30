@@ -3,6 +3,7 @@ import json
 from bs4 import BeautifulSoup
 import os
 import sys
+import re
 
 slack_url = os.getenv('SLACK_URL')
 if not slack_url:
@@ -15,12 +16,17 @@ page = requests.get(mzcr_url)
 soup = BeautifulSoup(page.content, 'html.parser')
 
 def updated(count):
-    return count.parent.find_all('p')[-1].string[1:-1].replace("v", "@").strip()
+    regex = re.compile('k(.*?)h')
+    text = count.parent.find_all('p')[-1].text.strip()
+    date = regex.search(text).group(1)
+    return date.replace("v", "@").strip()
 
 tested = soup.find(id='count-test')
 tested_updated = updated(tested)
 infected = soup.find(id='count-sick')
 infected_updated = updated(infected)
+active = soup.find(id='count-active')
+active_updated = updated(active)
 recovered = soup.find(id='count-recover')
 recovered_updated = updated(recovered)
 dead = soup.find(id='count-dead')
@@ -28,90 +34,107 @@ dead_updated = updated(dead)
 
 payload = {
     "blocks": [
-    	{
-    		"type": "section",
-    		"text": {
-    			"type": "mrkdwn",
-    			"text": ":female-doctor:  *{}* tested  :male-doctor:".format(tested.string)
-    		}
-    	},
         {
-			"type": "context",
-			"elements": [
-				{
-					"type": "mrkdwn",
-					"text": "Last update: *{}*".format(tested_updated)
-				}
-			]
-		},
-    	{ "type": "divider" },
-    	{
-    		"type": "section",
-    		"text": {
-    			"type": "mrkdwn",
-    			"text": ":zombie:  *{}* infected  :female_zombie:".format(infected.string)
-    		}
-    	},
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": ":female-doctor:  *{}* tested  :male-doctor:".format(tested.string)
+    	    }
+        },
         {
-			"type": "context",
-			"elements": [
-				{
-					"type": "mrkdwn",
-					"text": "Last update: *{}*".format(infected_updated)
-				}
-			]
-		},
-    	{ "type": "divider" },
-    	{
-    		"type": "section",
-    		"text": {
-    			"type": "mrkdwn",
-    			"text": ":woman-tipping-hand:  *{}* recovered  :man-tipping-hand:".format(recovered.string)
-    		}
-    	},
-        {
-			"type": "context",
-			"elements": [
-				{
-					"type": "mrkdwn",
-					"text": "Last update: *{}*".format(recovered_updated)
-				}
-			]
-		},
-    	{ "type": "divider" },
-    	{
-    		"type": "section",
-    		"text": {
-    			"type": "mrkdwn",
-    			"text": ":skull:  *{}* dead  :skull:".format(dead.string)
-    		}
-    	},
-        {
-			"type": "context",
-			"elements": [
-				{
-					"type": "mrkdwn",
-					"text": "Last update: *{}*".format(dead_updated)
-				}
-			]
-		},
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "Last update: *{}*".format(tested_updated)
+                }
+            ]
+        },
         { "type": "divider" },
         {
-			"type": "section",
-			"text": {
-				"type": "mrkdwn",
-				"text": "*For more info click this button.*"
-			},
-			"accessory": {
-				"type": "button",
-				"text": {
-					"type": "plain_text",
-					"text": "MZČR",
-					"emoji": True
-				},
-				"url": "https://onemocneni-aktualne.mzcr.cz/covid-19"
-			}
-		}
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": ":bar_chart:  *{}* infected total  :chart_with_upwards_trend:".format(infected.string)
+            }
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "Last update: *{}*".format(infected_updated)
+                }
+            ]
+        },
+        { "type": "divider" },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": ":zombie:  *{}* currently infected  :female_zombie:".format(active.string)
+            }
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "Last update: *{}*".format(active_updated)
+                }
+            ]
+        },
+        { "type": "divider" },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": ":woman-tipping-hand:  *{}* recovered  :man-tipping-hand:".format(recovered.string)
+            }
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "Last update: *{}*".format(recovered_updated)
+                }
+            ]
+        },
+        { "type": "divider" },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": ":skull:  *{}* dead  :skull:".format(dead.string)
+            }
+        },
+        {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": "Last update: *{}*".format(dead_updated)
+                }
+            ]
+        },
+        { "type": "divider" },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": "*For more info click this button:*"
+            },
+            "accessory": {
+                "type": "button",
+                "text": {
+                    "type": "plain_text",
+                    "text": "MZČR",
+                    "emoji": True
+                },
+                "url": mzcr_url
+            }
+        }
     ]
 }
 
