@@ -1,3 +1,5 @@
+# coding=utf-8
+
 import requests
 import json
 from bs4 import BeautifulSoup
@@ -16,17 +18,17 @@ page = requests.get(mzcr_url)
 soup = BeautifulSoup(page.content, 'html.parser')
 
 def updated(count):
-    regex = re.compile('k(.*?)h')
-    text = count.parent.find_all('p')[-1].text.strip()
+    regex = re.compile('k datu:(.*?)h')
+    text = count.parent.parent.findChildren('p', recursive=False)[-1].text.strip()
     date = regex.search(text).group(1)
     return date.replace("v", "@").strip()
 
 tested = soup.find(id='count-test')
-tested_updated = updated(tested)
+tested_updated = updated(tested.parent)
 infected = soup.find(id='count-sick')
-infected_updated = updated(infected)
+infected_updated = updated(infected.parent.parent)
 active = soup.find(id='count-active')
-active_updated = updated(active)
+active_updated = updated(active.parent)
 recovered = soup.find(id='count-recover')
 recovered_updated = updated(recovered)
 dead = soup.find(id='count-dead')
