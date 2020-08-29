@@ -4,6 +4,7 @@ import requests
 import json
 from bs4 import BeautifulSoup
 import os
+import os.path
 import sys
 import re
 
@@ -34,13 +35,45 @@ recovered_updated = updated(recovered)
 dead = soup.find(id='count-dead')
 dead_updated = updated(dead)
 
+# We're rewriting that file. If it's not ours, it has no business being here.
+if not os.path.isfile('previous.json'):
+    open('previous.json', 'w').close()
+
+with open('previous.json', 'r+') as f:
+    previous_data = f.read()
+    current_data_points = [
+        ('tested', tested),
+        ('total_infected', infected),
+        ('infected', active),
+        ('recovered', recovered),
+        ('dead', dead),
+    ]
+    current_data = {key: int(''.join(value.string.split())) for key, value in current_data_points}
+    f.seek(0)
+    f.write(json.dumps(current_data, indent=2))
+    f.truncate()
+
+if previous_data:
+    previous_data = json.loads(previous_data)
+    def comparison(value):
+        if value == 0:
+            return 'unchanged'
+
+        return '{}{}'.format(
+            '+' if value > 0 else '',
+            value
+        )
+    comparisons = {key: ' ({})'.format(comparison(current_data[key] - previous_data[key])) for key in previous_data}
+else:
+    comparisons = {key: '' for key in current_data}
+
 payload = {
     "blocks": [
         {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": ":female-doctor:  *{}* tested  :male-doctor:".format(tested.string)
+                "text": ":female-doctor:  *{}* tested{}  :male-doctor:".format(tested.string, comparisons['tested'])
     	    }
         },
         {
@@ -57,7 +90,7 @@ payload = {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": ":bar_chart:  *{}* infected total  :chart_with_upwards_trend:".format(infected.string)
+                "text": ":bar_chart:  *{}* infected total{}  :chart_with_upwards_trend:".format(infected.string, comparisons['total_infected'])
             }
         },
         {
@@ -74,7 +107,7 @@ payload = {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": ":zombie:  *{}* currently infected  :female_zombie:".format(active.string)
+                "text": ":zombie:  *{}* currently infected{}  :female_zombie:".format(active.string, comparisons['infected'])
             }
         },
         {
@@ -91,7 +124,7 @@ payload = {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": ":woman-tipping-hand:  *{}* recovered  :man-tipping-hand:".format(recovered.string)
+                "text": ":woman-tipping-hand:  *{}* recovered{}  :man-tipping-hand:".format(recovered.string, comparisons['recovered'])
             }
         },
         {
@@ -108,7 +141,7 @@ payload = {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": ":skull:  *{}* dead  :skull:".format(dead.string)
+                "text": ":skull:  *{}* dead{}  :skull:".format(dead.string, comparisons['dead'])
             }
         },
         {
