@@ -73,7 +73,7 @@ payload = {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": ":female-doctor:  *{}* tested{}  :male-doctor:".format(tested.string, comparisons['tested'])
+                "text": ":female-doctor:  *{}*{} tested  :male-doctor:".format(tested.string, comparisons['tested'])
     	    }
         },
         {
@@ -90,7 +90,7 @@ payload = {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": ":bar_chart:  *{}* infected total{}  :chart_with_upwards_trend:".format(infected.string, comparisons['total_infected'])
+                "text": ":bar_chart:  *{}*{} infected total  :chart_with_upwards_trend:".format(infected.string, comparisons['total_infected'])
             }
         },
         {
@@ -107,7 +107,7 @@ payload = {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": ":zombie:  *{}* currently infected{}  :female_zombie:".format(active.string, comparisons['infected'])
+                "text": ":zombie:  *{}*{} currently infected  :female_zombie:".format(active.string, comparisons['infected'])
             }
         },
         {
@@ -124,7 +124,7 @@ payload = {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": ":woman-tipping-hand:  *{}* recovered{}  :man-tipping-hand:".format(recovered.string, comparisons['recovered'])
+                "text": ":woman-tipping-hand:  *{}*{} recovered  :man-tipping-hand:".format(recovered.string, comparisons['recovered'])
             }
         },
         {
@@ -141,7 +141,7 @@ payload = {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": ":skull:  *{}* dead{}  :skull:".format(dead.string, comparisons['dead'])
+                "text": ":skull:  *{}*{} dead  :skull:".format(dead.string, comparisons['dead'])
             }
         },
         {
