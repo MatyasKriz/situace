@@ -2,11 +2,15 @@
 This is a simple Python script that scrapes MZČR info about the coronasituace in Czechia and posts it to Slack workspace.
 
 ### Usage
-- Clone the repo somewhere and copy the path.
-- [pipenv](https://packaging.python.org/tutorials/managing-dependencies/) is used for managing the dependencies for this script. (BeautifulSoup & Requests)
-- If you have `pipenv` installed, simply `cd` into the cloned directory and run
+- Clone the repo somewhere and copy the path. (`pwd` command)
+- `cd` into the repository.
+- Create a virtual environment using `venv`.
 ```
-pipenv run python main.py
+python3 -m venv env
+```
+- Install dependencies.
+```
+env/bin/pip install -r requirements.txt
 ```
 
 #### Regular Updates
@@ -22,9 +26,8 @@ crontab -e
 This should open the crontab file with some editor,
 paste this at the end of it:
 ```
-SHELL=/bin/bash
 SLACK_URL=https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX
-0 18 * * * cd PATH_TO_REPO && /usr/local/bin/pipenv run python main.py
+0 18 * * * cd PATH_TO_REPO && env/bin/python main.py
 ```
 
 - Replace `PATH_TO_REPO` with the path to the cloned repository.
