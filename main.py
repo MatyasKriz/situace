@@ -34,6 +34,7 @@ recovered = soup.find(id='count-recover')
 recovered_updated = updated(recovered)
 dead = soup.find(id='count-dead')
 dead_updated = updated(dead)
+vaccinated = soup.find_all(id='count-test')[-1]
 
 # We're rewriting that file. If it's not ours, it has no business being here.
 dirname = os.path.dirname(__file__)
@@ -49,8 +50,9 @@ with open(previous_data_path, 'r+') as f:
         ('infected', active),
         ('recovered', recovered),
         ('dead', dead),
+        ('vaccinated', vaccinated),
     ]
-    current_data = {key: int(''.join(value.string.split())) for key, value in current_data_points}
+    current_data = {key: int(value['data-value']) for key, value in current_data_points}
     f.seek(0)
     f.write(json.dumps(current_data, indent=2))
     f.truncate()
@@ -156,6 +158,14 @@ payload = {
                     "text": "Last update: *{}*".format(dead_updated)
                 }
             ]
+        },
+        { "type": "divider" },
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": ":syringe:  *{}*{} vaccinated  :pill:".format(current_data_formatted['vaccinated'], comparisons['vaccinated'])
+            }
         },
         { "type": "divider" },
         {
