@@ -2,39 +2,38 @@
 
 import requests
 import json
-from bs4 import BeautifulSoup
 import os
 import os.path
 import sys
 import re
+import datetime
 
 slack_url = os.getenv('SLACK_URL')
 if not slack_url:
     print('Provide a hook to your Slack workspace in the `SLACK_URL` environment property.\n(e.g. https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX)')
     sys.exit('Slack hook URL is necessary to post the overview into the workspace.')
 
+approximate_citizen_count = 10_707_839
+
 mzcr_url = 'https://onemocneni-aktualne.mzcr.cz/covid-19'
 
-page = requests.get(mzcr_url)
-soup = BeautifulSoup(page.content, 'html.parser')
+tests_url = 'https://onemocneni-aktualne.mzcr.cz/api/v2/covid-19/testy-pcr-antigenni.json'
+overview_url = 'https://onemocneni-aktualne.mzcr.cz/api/v2/covid-19/zakladni-prehled.json'
+vaccinations_url = 'https://onemocneni-aktualne.mzcr.cz/api/v2/covid-19/ockovani.json'
 
-def updated(count):
-    regex = re.compile('k datu:(.*?)h')
-    text = count.parent.parent.findChildren('p', recursive=False)[-1].text.strip()
-    date = regex.search(text).group(1)
-    return date.replace("v", "@").strip()
+tests_json = requests.get(tests_url).json()
+overview_json = requests.get(overview_url).json()
+vaccinations_json = requests.get(vaccinations_url).json()
 
-tested = soup.find(id='count-test')
-tested_updated = updated(tested.parent)
-infected = soup.find(id='count-sick')
-infected_updated = updated(infected.parent.parent)
-active = soup.find(id='count-active')
-active_updated = updated(active.parent)
-recovered = soup.find(id='count-recover')
-recovered_updated = updated(recovered)
-dead = soup.find(id='count-dead')
-dead_updated = updated(dead)
-vaccinated = soup.find_all(id='count-test')[-1]
+# TODO: Post detailed info about vaccine distribution and tests with and without symptoms into message's thread.
+tests_pcr = sum(int(data_point['pocet_PCR_testy']) for data_point in tests_json['data'])
+tests_antigen = sum(int(data_point['pocet_AG_testy']) for data_point in tests_json['data'])
+
+vaccines_by_name = { data_point['vakcina'] for data_point in vaccinations_json['data'] }
+total_first_dose_vaccinations = sum(int(data_point['prvnich_davek']) for data_point in vaccinations_json['data'])
+total_first_dose_vaccinations_percentage = '{:.1%}'.format(total_first_dose_vaccinations / approximate_citizen_count)
+total_second_dose_vaccinations = sum(int(data_point['druhych_davek']) for data_point in vaccinations_json['data'])
+total_second_dose_vaccinations_percentage = '{:.1%}'.format(total_second_dose_vaccinations / approximate_citizen_count)
 
 # We're rewriting that file. If it's not ours, it has no business being here.
 dirname = os.path.dirname(__file__)
@@ -45,129 +44,201 @@ if not os.path.isfile(previous_data_path):
 with open(previous_data_path, 'r+') as f:
     previous_data = f.read()
     current_data_points = [
-        ('tested', tested),
-        ('total_infected', infected),
-        ('infected', active),
-        ('recovered', recovered),
-        ('dead', dead),
-        ('vaccinated', vaccinated),
+        ('tests_pcr', tests_pcr),
+        ('tests_antigen', tests_antigen),
+        ('total_infections', overview_json['data'][0]['potvrzene_pripady_celkem']),
+        ('active_infections', overview_json['data'][0]['aktivni_pripady']),
+        ('recoveries', overview_json['data'][0]['vyleceni']),
+        ('hospitalized', overview_json['data'][0]['aktualne_hospitalizovani']),
+        ('deceased', overview_json['data'][0]['umrti']),
+        ('vaccinations_first_dose', total_first_dose_vaccinations),
+        ('vaccinations_second_dose', total_second_dose_vaccinations),
     ]
-    current_data = {key: int(value['data-value']) for key, value in current_data_points}
+    current_data = {key: int(value) for key, value in current_data_points}
     f.seek(0)
     f.write(json.dumps(current_data, indent=2))
     f.truncate()
 
 if previous_data:
     previous_data = json.loads(previous_data)
-    def comparison(value):
-        if value == 0:
-            return 'unchanged'
-
-        return '{}{:,}'.format(
-            '+' if value > 0 else '',
-            value
-        ).replace(',', ' ')
-    comparisons = {key: ' ({})'.format(comparison(current_data[key] - previous_data[key])) for key in previous_data}
 else:
-    comparisons = {key: '' for key in current_data}
+    previous_data = {}
 
-current_data_formatted = {key: f'{current_data[key]:,}'.replace(',', ' ').strip() for key in current_data}
+
+def format_number(number):
+    return f'{number:,}'.replace(',', ' ').strip()
+
+def format_comparison(old_value, new_value):
+    if old_value is not None:
+        comparison = new_value - old_value
+        if comparison == 0:
+            return ' (unchanged)'
+
+        return ' ({}{})'.format(
+            '+' if comparison > 0 else '',
+            format_number(comparison)
+        )
+    else:
+        return ''
+
+def format_modified(date):
+    return date.strftime("%d/%m/%Y @ %H:%M")
+
+def modified(data):
+    return datetime.datetime.strptime(data['modified'], '%Y-%m-%dT%H:%M:%S%z')
+
+tests_modified = modified(tests_json)
+overview_modified = modified(overview_json)
+vaccinations_modified = modified(vaccinations_json)
+
+previous_total_tests = None
+
+previous_pcr_tests = previous_data.get('tests_pcr')
+if previous_pcr_tests is not None:
+    previous_total_tests = (previous_total_tests or 0) + previous_pcr_tests
+
+previous_antigen_tests = previous_data.get('tests_antigen')
+if previous_antigen_tests is not None:
+    previous_total_tests = (previous_total_tests or 0) + previous_antigen_tests
+
+class Slack:
+    def section(text):
+        return {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": text
+            }
+        }
+
+    def context(text):
+        return {
+            "type": "context",
+            "elements": [
+                {
+                    "type": "mrkdwn",
+                    "text": text
+                }
+            ]
+        }
+
+    def header(text):
+        return {
+			"type": "header",
+			"text": {
+				"type": "plain_text",
+				"text": text,
+				"emoji": True
+			}
+		}
+
+    def spacer():
+        return {
+			"type": "section",
+			"text": {
+				"type": "plain_text",
+				"text": " ",
+				"emoji": False
+			}
+		}
+
+    def divider():
+        return { "type": "divider" }
+
+    def overflow(text, elements):
+        return {
+			"type": "section",
+			"text": {
+				"type": "mrkdwn",
+				"text": text
+			},
+			"accessory": {
+				"type": "overflow",
+				"options": [
+					map(overflow_item, elements)
+				]
+			}
+		}
+
+    def overflow_item(text):
+        return {
+            "text": {
+                "type": "plain_text",
+                "text": text,
+                "emoji": True
+            }
+        }
+
 
 payload = {
     "blocks": [
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": ":female-doctor:  *{}*{} tested  :male-doctor:".format(current_data_formatted['tested'], comparisons['tested'])
-    	    }
-        },
-        {
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": "Last update: *{}*".format(tested_updated)
-                }
-            ]
-        },
-        { "type": "divider" },
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": ":bar_chart:  *{}*{} infected total  :chart_with_upwards_trend:".format(current_data_formatted['total_infected'], comparisons['total_infected'])
-            }
-        },
-        {
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": "Last update: *{}*".format(infected_updated)
-                }
-            ]
-        },
-        { "type": "divider" },
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": ":zombie:  *{}*{} currently infected  :female_zombie:".format(current_data_formatted['infected'], comparisons['infected'])
-            }
-        },
-        {
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": "Last update: *{}*".format(active_updated)
-                }
-            ]
-        },
-        { "type": "divider" },
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": ":woman-tipping-hand:  *{}*{} recovered  :man-tipping-hand:".format(current_data_formatted['recovered'], comparisons['recovered'])
-            }
-        },
-        {
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": "Last update: *{}*".format(recovered_updated)
-                }
-            ]
-        },
-        { "type": "divider" },
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": ":skull:  *{}*{} dead  :skull:".format(current_data_formatted['dead'], comparisons['dead'])
-            }
-        },
-        {
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": "Last update: *{}*".format(dead_updated)
-                }
-            ]
-        },
-        { "type": "divider" },
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": ":syringe:  *{}*{} vaccinated  :pill:".format(current_data_formatted['vaccinated'], comparisons['vaccinated'])
-            }
-        },
-        { "type": "divider" },
+		Slack.header("Situace - {}".format(datetime.datetime.now().strftime("%d/%m/%Y"))),
+        Slack.section(
+            "[Tests] :female-doctor: :male-doctor:" +
+            "\n\t PCR: *{}*{}".format(
+                format_number(current_data['tests_pcr']),
+                format_comparison(previous_data.get('tests_pcr'), current_data['tests_pcr']),
+            ) +
+            "\n\t Antigen: *{}*{}".format(
+                format_number(current_data['tests_antigen']),
+                format_comparison(previous_data.get('tests_antigen'), current_data['tests_antigen']),
+            ) +
+            "\n\t Total: *{}*{}".format(
+                format_number(current_data['tests_pcr'] + current_data['tests_antigen']),
+                format_comparison(previous_total_tests, current_data['tests_pcr'] + current_data['tests_antigen']),
+            )
+        ),
+        Slack.context("Last update: *{}*".format(format_modified(tests_modified))),
+        Slack.divider(),
+        Slack.spacer(),
+        Slack.section(
+            "[Infections] :zombie: :female_zombie:" +
+            "\n\t Active: *{}*{}".format(
+                format_number(current_data['active_infections']),
+                format_comparison(previous_data.get('active_infections'), current_data['active_infections']),
+            ) +
+            "\n\t Recovered: *{}*{}".format(
+                format_number(current_data['recoveries']),
+                format_comparison(previous_data.get('recoveries'), current_data['recoveries']),
+            ) +
+            "\n\t Total: *{}*{}".format(
+                format_number(current_data['total_infections']),
+                format_comparison(previous_data.get('total_infections'), current_data['total_infections']),
+            )
+        ),
+        Slack.context("Last update: *{}*".format(format_modified(overview_modified))),
+        Slack.divider(),
+        Slack.spacer(),
+        Slack.section(
+            "[Losses] :hospital: :f:" +
+            "\n\t Hospitalized *{}*{}".format(
+                format_number(current_data['hospitalized']),
+                format_comparison(previous_data.get('hospitalized'), current_data['hospitalized']),
+            ) +
+            "\n\t Deceased *{}*{}".format(
+                format_number(current_data['deceased']),
+                format_comparison(previous_data.get('deceased'), current_data['deceased']),
+            )
+        ),
+        Slack.context("Last update: *{}*".format(format_modified(overview_modified))),
+        Slack.divider(),
+        Slack.spacer(),
+        Slack.section(
+            "[Vaccinations] :syringe: :pill:" +
+            "\n\t First dose: *{}* = {}{}".format(
+                format_number(current_data['vaccinations_first_dose']),
+                total_first_dose_vaccinations_percentage,
+                format_comparison(previous_data.get('vaccinations_first_dose'), current_data['vaccinations_first_dose']),
+            ) +
+            "\n\t Second dose: *{}* = {}{}".format(
+                format_number(current_data['vaccinations_second_dose']),
+                total_second_dose_vaccinations_percentage,
+                format_comparison(previous_data.get('vaccinations_second_dose'), current_data['vaccinations_second_dose']),
+            )
+        ),
+        Slack.context("Last update: *{}*".format(format_modified(vaccinations_modified))),
+        Slack.divider(),
+        Slack.spacer(),
         {
             "type": "section",
             "text": {
