@@ -190,7 +190,6 @@ payload = {
         ),
         Slack.context("Last update: *{}*".format(format_modified(tests_modified))),
         Slack.divider(),
-        Slack.spacer(),
         Slack.section(
             "[Infections] :zombie: :female_zombie:" +
             "\n\t Active: *{}*{}".format(
@@ -208,21 +207,19 @@ payload = {
         ),
         Slack.context("Last update: *{}*".format(format_modified(overview_modified))),
         Slack.divider(),
-        Slack.spacer(),
         Slack.section(
             "[Losses] :hospital: :f:" +
-            "\n\t Hospitalized *{}*{}".format(
+            "\n\t Hospitalized: *{}*{}".format(
                 format_number(current_data['hospitalized']),
                 format_comparison(previous_data.get('hospitalized'), current_data['hospitalized']),
             ) +
-            "\n\t Deceased *{}*{}".format(
+            "\n\t Deceased: *{}*{}".format(
                 format_number(current_data['deceased']),
                 format_comparison(previous_data.get('deceased'), current_data['deceased']),
             )
         ),
         Slack.context("Last update: *{}*".format(format_modified(overview_modified))),
         Slack.divider(),
-        Slack.spacer(),
         Slack.section(
             "[Vaccinations] :syringe: :pill:" +
             "\n\t First dose: *{}* = {}{}".format(
@@ -238,7 +235,6 @@ payload = {
         ),
         Slack.context("Last update: *{}*".format(format_modified(vaccinations_modified))),
         Slack.divider(),
-        Slack.spacer(),
         {
             "type": "section",
             "text": {
