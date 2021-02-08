@@ -172,7 +172,7 @@ class Slack:
 
 payload = {
     "blocks": [
-		Slack.header("Situace - {}".format(datetime.datetime.now().strftime("%d/%m/%Y"))),
+		Slack.header("Situace – {}".format(datetime.datetime.now().strftime("%d/%m/%Y"))),
         Slack.section(
             "[Tests] :female-doctor: :male-doctor:" +
             "\n\t PCR: *{}*{}".format(
