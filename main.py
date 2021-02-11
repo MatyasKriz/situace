@@ -222,12 +222,12 @@ payload = {
         Slack.divider(),
         Slack.section(
             "[Vaccinations] :syringe: :pill:" +
-            "\n\t First dose: *{}* = {}{}".format(
+            "\n\t First dose: *{}* ≅ {}{}".format(
                 format_number(current_data['vaccinations_first_dose']),
                 total_first_dose_vaccinations_percentage,
                 format_comparison(previous_data.get('vaccinations_first_dose'), current_data['vaccinations_first_dose']),
             ) +
-            "\n\t Second dose: *{}* = {}{}".format(
+            "\n\t Second dose: *{}* ≅ {}{}".format(
                 format_number(current_data['vaccinations_second_dose']),
                 total_second_dose_vaccinations_percentage,
                 format_comparison(previous_data.get('vaccinations_second_dose'), current_data['vaccinations_second_dose']),
