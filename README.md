@@ -4,8 +4,7 @@ This is a simple Python script that fetches MZČR JSON info about the coronasitu
 ![](./res/screenshot.png)
 
 ### Usage
-- Clone the repo somewhere and copy the path. (`pwd` command)
-- `cd` into the repository.
+- Clone the repo somewhere and `cd` into it.
 - Create a virtual environment using `venv`.
 ```
 python3 -m venv env
@@ -18,7 +17,7 @@ env/bin/pip install -r requirements.txt
 #### Regular Updates
 I've found that the easiest way to run this script regularly is through crontab.
 
-**IMPORTANT**: On MacOS your terminal application needs to have "Full Disk Access" permission (Security and Privacy).
+**IMPORTANT**: On MacOS your terminal application needs to have "Full Disk Access" permission (in Security and Privacy) to write data into `previous.json` so that the next run can calculate differences.
 
 To edit your crontab, simply run
 ```
