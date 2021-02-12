@@ -3,7 +3,6 @@
 import requests
 import json
 import os
-import os.path
 import sys
 import re
 import datetime
