@@ -124,41 +124,41 @@ class Slack:
 
     def header(text):
         return {
-			"type": "header",
-			"text": {
-				"type": "plain_text",
-				"text": text,
-				"emoji": True
-			}
-		}
+            "type": "header",
+            "text": {
+                "type": "plain_text",
+                "text": text,
+                "emoji": True
+            }
+        }
 
     def spacer():
         return {
-			"type": "section",
-			"text": {
-				"type": "plain_text",
-				"text": " ",
-				"emoji": False
-			}
-		}
+            "type": "section",
+            "text": {
+                "type": "plain_text",
+                "text": " ",
+                "emoji": False
+            }
+        }
 
     def divider():
         return { "type": "divider" }
 
     def overflow(text, elements):
         return {
-			"type": "section",
-			"text": {
-				"type": "mrkdwn",
-				"text": text
-			},
-			"accessory": {
-				"type": "overflow",
-				"options": [
-					map(overflow_item, elements)
-				]
-			}
-		}
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": text
+            },
+            "accessory": {
+                "type": "overflow",
+                "options": [
+                    map(overflow_item, elements)
+                ]
+            }
+        }
 
     def overflow_item(text):
         return {
@@ -172,7 +172,7 @@ class Slack:
 
 payload = {
     "blocks": [
-		Slack.header("Situace – {}".format(datetime.datetime.now().strftime("%d/%m/%Y"))),
+        Slack.header("Situace – {}".format(datetime.datetime.now().strftime("%d/%m/%Y"))),
         Slack.section(
             "[Tests] :female-doctor: :male-doctor:" +
             "\n\t PCR: *{}*{}".format(
