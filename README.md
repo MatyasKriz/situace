@@ -1,5 +1,5 @@
 # Situace
-This is a simple Python script that fetches MZČR JSON info about the coronasituace in Czechia and posts it to Slack workspace.
+This is a simple Python script that fetches MZČR JSON info about the coronasituace in Czechia and posts it to a Slack workspace.
 
 ![](./res/screenshot.png)
 
@@ -34,6 +34,9 @@ SLACK_URL=https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXX
 - Replace `PATH_TO_REPO` with the path to the cloned repository.
 - Replace the `SLACK_URL` value with a Slack webhook for your workspace.
 - Consult [crontab.guru](https://crontab.guru/) for customizing times of execution, this combination fires every day at 6 PM (18:00).
+
+### Errbot plugin
+If you're using a bot instead or feel like setting it up, there's a modified version of this script as an [Errbot plugin](https://github.com/lyarenei/errbot-czechia-covid).
 
 ### License
 **MIT**, more in the `LICENSE` file.
