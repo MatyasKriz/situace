@@ -32,7 +32,7 @@ SLACK_URL=https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXX
 ```
 
 - Replace `PATH_TO_REPO` with the path to the cloned repository.
-- Replace the `SLACK_URL` value with a Slack webhook for your workspace.
+- Replace the `SLACK_URL` value with a Slack webhook for your workspace ([tutorial here](https://api.slack.com/messaging/webhooks)).
 - Consult [crontab.guru](https://crontab.guru/) for customizing times of execution, this combination fires every day at 6 PM (18:00).
 
 ### Errbot plugin
