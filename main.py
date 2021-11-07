@@ -253,4 +253,12 @@ payload = {
     ]
 }
 
-requests.post(slack_url, json=payload)
+json_payload = json.dumps(payload)
+
+session = requests.Session()
+retries = Retry(
+    total=5,
+    backoff_factor=0.1
+)
+session.mount(slack_url, HTTPAdapter(max_retries=retries))
+session.post(slack_url, data=json_payload)
