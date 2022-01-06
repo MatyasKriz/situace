@@ -8,12 +8,20 @@ import re
 import datetime
 import csv
 
-slack_url = os.getenv('SLACK_URL')
-if not slack_url:
-    print('Provide a hook to your Slack workspace in the `SLACK_URL` environment property.\n(e.g. https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX)')
-    sys.exit('Slack hook URL is necessary to post the overview into the workspace.')
+space_url = os.getenv('SPACE_URL')
+if not space_url:
+    print('Provide a JetBrains Space URL in the `SPACE_URL` environment property.')
+    sys.exit('JetBrains Space URL is necessary to post the overview into the workspace.')
 
-approximate_citizen_count = 10_701_777
+space_access_token = os.getenv('SPACE_ACCESS_TOKEN')
+if not space_access_token:
+    print('Provide a JetBrains Space Access Token in the `SPACE_ACCESS_TOKEN` environment property.')
+    sys.exit('JetBrains Space Access Token is necessary to post the overview into the workspace.')
+
+space_channel_id = os.getenv('SPACE_CHANNEL_ID')
+if not space_channel_id:
+    print('Provide a JetBrains Space Channel ID in the `SPACE_CHANNEL_ID` environment property.')
+    sys.exit('JetBrains Space Channel ID is necessary to post the overview into the workspace.')
 
 mzcr_url = 'https://onemocneni-aktualne.mzcr.cz/covid-19'
 
@@ -22,10 +30,9 @@ overview_url = 'https://onemocneni-aktualne.mzcr.cz/api/v2/covid-19/zakladni-pre
 overview_csv = next(csv.DictReader(requests.get(overview_url).content.decode('utf-8-sig').splitlines()))
 
 tests_antigen = overview_csv['provedene_antigenni_testy_celkem']
-tests_pcr = int(overview_csv['provedene_testy_celkem']) - int(overview_csv['provedene_antigenni_testy_celkem'])
+tests_pcr = int(overview_csv['provedene_testy_celkem'])
 
 total_vaccinations = int(overview_csv['vykazana_ockovani_celkem'])
-total_vaccinations_percentage = '{:.1%}'.format(total_vaccinations / approximate_citizen_count)
 
 # We're rewriting that file. If it's not ours, it has no business being here.
 dirname = os.path.dirname(__file__)
@@ -82,147 +89,127 @@ previous_antigen_tests = previous_data.get('tests_antigen')
 if previous_antigen_tests is not None:
     previous_total_tests = (previous_total_tests or 0) + previous_antigen_tests
 
-class Slack:
-    def section(text):
-        return {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": text
-            }
-        }
-
-    def context(text):
-        return {
-            "type": "context",
-            "elements": [
-                {
-                    "type": "mrkdwn",
-                    "text": text
-                }
-            ]
-        }
-
+class Space:
     def header(text):
         return {
-            "type": "header",
-            "text": {
-                "type": "plain_text",
-                "text": text,
-                "emoji": True
-            }
+            "className": "MessageSection",
+            "header": text,
+            "elements": []
         }
 
-    def spacer():
+
+    def section(text):
         return {
-            "type": "section",
-            "text": {
-                "type": "plain_text",
-                "text": " ",
-                "emoji": False
-            }
+            "className": "MessageSection",
+            "elements": [{
+                "className": "MessageText",
+                "content": text
+            }]
         }
 
     def divider():
-        return { "type": "divider" }
-
-    def overflow(text, elements):
-        return {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": text
-            },
-            "accessory": {
-                "type": "overflow",
-                "options": [
-                    map(overflow_item, elements)
-                ]
-            }
-        }
-
-    def overflow_item(text):
-        return {
-            "text": {
-                "type": "plain_text",
-                "text": text,
-                "emoji": True
-            }
-        }
+        return { "className": "MessageDivider" }
 
 
 payload = {
-    "blocks": [
-        Slack.header("Situace – {}".format(datetime.datetime.now().strftime("%d/%m/%Y"))),
-        Slack.section(
-            "[Tests] :female-doctor: :male-doctor:" +
-            "\n\t PCR: *{}*{}".format(
-                format_number(current_data['tests_pcr']),
-                format_comparison(previous_data.get('tests_pcr'), current_data['tests_pcr']),
-            ) +
-            "\n\t Antigen: *{}*{}".format(
-                format_number(current_data['tests_antigen']),
-                format_comparison(previous_data.get('tests_antigen'), current_data['tests_antigen']),
-            ) +
-            "\n\t Total: *{}*{}".format(
-                format_number(current_data['tests_pcr'] + current_data['tests_antigen']),
-                format_comparison(previous_total_tests, current_data['tests_pcr'] + current_data['tests_antigen']),
-            )
-        ),
-        Slack.divider(),
-        Slack.section(
-            "[Infections] :zombie: :female_zombie:" +
-            "\n\t Active: *{}*{}".format(
-                format_number(current_data['active_infections']),
-                format_comparison(previous_data.get('active_infections'), current_data['active_infections']),
-            ) +
-            "\n\t Recovered: *{}*{}".format(
-                format_number(current_data['recoveries']),
-                format_comparison(previous_data.get('recoveries'), current_data['recoveries']),
-            ) +
-            "\n\t Total: *{}*{}".format(
-                format_number(current_data['total_infections']),
-                format_comparison(previous_data.get('total_infections'), current_data['total_infections']),
-            )
-        ),
-        Slack.divider(),
-        Slack.section(
-            "[Losses] :hospital: :f:" +
-            "\n\t Hospitalized: *{}*{}".format(
-                format_number(current_data['hospitalized']),
-                format_comparison(previous_data.get('hospitalized'), current_data['hospitalized']),
-            ) +
-            "\n\t Deceased: *{}*{}".format(
-                format_number(current_data['deceased']),
-                format_comparison(previous_data.get('deceased'), current_data['deceased']),
-            )
-        ),
-        Slack.divider(),
-        Slack.section(
-            "[Vaccinations] :syringe: :pill:" +
-            "\n\t Any dose: *{}*{}".format(
-                format_number(current_data['total_vaccinations']),
-                format_comparison(previous_data.get('total_vaccinations'), current_data['total_vaccinations']),
-            )
-        ),
-        Slack.divider(),
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": "*For more info click this button:*"
-            },
-            "accessory": {
-                "type": "button",
-                "text": {
-                    "type": "plain_text",
-                    "text": "MZČR",
-                    "emoji": True
+    "recipient": "channel:id:{}".format(space_channel_id),
+    "content": {
+        "className": "ChatMessage.Block",
+        "sections": [
+            Space.header("Situace – {}".format(datetime.datetime.now().strftime("%d/%m/%Y"))),
+            Space.section(
+                "[Tests] 👩‍⚕️ 👨‍⚕️" +
+                "\n• PCR: **{}**{}".format(
+                    format_number(current_data['tests_pcr']),
+                    format_comparison(previous_data.get('tests_pcr'), current_data['tests_pcr']),
+                ) +
+                "\n• Antigen: **{}**{}".format(
+                    format_number(current_data['tests_antigen']),
+                    format_comparison(previous_data.get('tests_antigen'), current_data['tests_antigen']),
+                ) +
+                "\n• Total: **{}**{}".format(
+                    format_number(current_data['tests_pcr'] + current_data['tests_antigen']),
+                    format_comparison(previous_total_tests, current_data['tests_pcr'] + current_data['tests_antigen']),
+                )
+            ),
+            Space.divider(),
+            Space.section(
+                "[Infections] 🧟 🧟‍♀️" +
+                "\n• Active: **{}**{}".format(
+                    format_number(current_data['active_infections']),
+                    format_comparison(previous_data.get('active_infections'), current_data['active_infections']),
+                ) +
+                "\n• Recovered: **{}**{}".format(
+                    format_number(current_data['recoveries']),
+                    format_comparison(previous_data.get('recoveries'), current_data['recoveries']),
+                ) +
+                "\n• Total: **{}**{}".format(
+                    format_number(current_data['total_infections']),
+                    format_comparison(previous_data.get('total_infections'), current_data['total_infections']),
+                )
+            ),
+            Space.divider(),
+            Space.section(
+                "[Losses] 🏥 🪦" +
+                "\n• Hospitalized: **{}**{}".format(
+                    format_number(current_data['hospitalized']),
+                    format_comparison(previous_data.get('hospitalized'), current_data['hospitalized']),
+                ) +
+                "\n• Deceased: **{}**{}".format(
+                    format_number(current_data['deceased']),
+                    format_comparison(previous_data.get('deceased'), current_data['deceased']),
+                )
+            ),
+            Space.divider(),
+            Space.section(
+                "[Vaccinations] 💉 💊" +
+                "\n• Doses administered: **{}**{}".format(
+                    format_number(current_data['total_vaccinations']),
+                    format_comparison(previous_data.get('total_vaccinations'), current_data['total_vaccinations']),
+                )
+            ),
+            Space.divider(),
+            {
+            "className": "MessageSection",
+            "elements": [
+            {
+              "className": "MessageText",
+              "accessory": {
+                "className": "MessageIcon",
+                "icon": {
+                  "icon": "info-small"
                 },
-                "url": mzcr_url
+                "style": "SECONDARY"
+              },
+              "content": "For more info click this button:"
+            },
+            {
+                "className": "MessageControlGroup",
+                "elements": [
+                  {
+                    "className": "MessageButton",
+                    "text": "MZČR",
+                    "style": "REGULAR",
+                    "action": {
+                      "className": "NavigateUrlAction",
+                      "url": mzcr_url,
+                      "withBackUrl": False,
+                      "openInNewTab": True
+                    }
+                  }
+                ]
             }
-        }
-    ]
+            ],
+            "footer": "Stay safe!"
+          }
+        ]
+    }
 }
 
-requests.post(slack_url, json=payload)
+headers = {
+    'Authorization': 'Bearer {}'.format(space_access_token),
+    'Accept': 'application/json',
+    'Content-Type': 'application/json'
+}
+
+requests.post(space_url, headers=headers, json=payload)
